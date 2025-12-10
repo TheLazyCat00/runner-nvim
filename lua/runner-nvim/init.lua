@@ -100,6 +100,10 @@ function Terminal:init()
 	vim.api.nvim_set_current_win(self.terminalWin)
 
 	self.jobId = vim.fn.jobstart(shellCommand, jobOptions)
+
+	vim.keymap.set('n', 'q', function ()
+		self:quit()
+	end, { buffer = self.terminalBuf, noremap = true, silent = true, desc = "Quit terminal" })
 end
 
 function Terminal:initWindow()
@@ -120,12 +124,16 @@ function Terminal:initWindow()
 end
 
 function Terminal:close()
-	vim.api.nvim_win_close(self.terminalWin, false)
+	if vim.api.nvim_win_is_valid(self.terminalWin) then
+		vim.api.nvim_win_close(self.terminalWin, false)
+	end
 end
 
 function Terminal:quit()
 	self:close()
-	vim.api.nvim_buf_delete(self.terminalBuf, {})
+	if vim.api.nvim_buf_is_valid(self.terminalBuf) then
+		vim.api.nvim_buf_delete(self.terminalBuf, { force = true })
+	end
 end
 
 function Terminal:open()
@@ -181,19 +189,13 @@ local function askCmd(callback)
 		row = row,
 		col = col,
 		style = "minimal",
-		border = "single",
+		border = "rounded",
 	})
 
-	local augroup = "Runner: Input window " .. tostring(win)
-	vim.api.nvim_create_augroup(augroup, {})
-	vim.api.nvim_create_autocmd("WinClosed", {
-		group = augroup,
-		callback = function(args)
-			if args.buf == buf then
-				vim.api.nvim_buf_delete(buf, {})
-			end
-		end,
-	})
+	vim.fn.prompt_setprompt(buf, "")
+	vim.bo[buf].buftype = "prompt"
+	vim.bo[buf].swapfile = false
+	vim.bo[buf].bufhidden = "wipe"
 
 	vim.cmd("startinsert")
 
@@ -204,10 +206,10 @@ local function askCmd(callback)
 		callback(cmd)
 	end
 
-	vim.keymap.set("n", "<CR>", confirm, { buffer = buf })
-	vim.keymap.set("i", "<CR>", confirm, { buffer = buf })
-	vim.keymap.set("i", "<C-s>", confirm, { buffer = buf })
-	vim.keymap.set('n', 'q', '<Cmd>close<CR>', { buffer = buf, noremap = true, silent = true })
+	vim.keymap.set("n", "<CR>", confirm, { buffer = buf, desc = "Submit" })
+	vim.keymap.set("i", "<CR>", confirm, { buffer = buf, desc = "Submit" })
+	vim.keymap.set("i", "<C-s>", confirm, { buffer = buf, desc = "Submit" })
+	vim.keymap.set('n', 'q', '<Cmd>close<CR>', { buffer = buf, noremap = true, silent = true, desc = "Cancel" })
 end
 
 function M.run()
