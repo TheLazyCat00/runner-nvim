@@ -35,6 +35,108 @@ local function updateHistory(cmd)
 	saveHistory(data)
 end
 
+---@class Terminal
+---@field terminalBuf integer?
+---@field terminalWin integer?
+---@field jobId integer?
+local Terminal = {}
+Terminal.__index = Terminal
+
+function Terminal:new()
+	local data = {
+		terminalBuf = nil,
+		terminalWin = nil,
+		jobId = nil,
+	}
+
+	setmetatable(data, Terminal)
+
+	return data
+end
+
+function Terminal:init()
+	if self.terminalBuf and vim.api.nvim_buf_is_valid(self.terminalBuf) then
+		vim.api.nvim_buf_delete(self.terminalBuf, {})
+	end
+
+	local shellCommand = vim.o.shell
+
+	local jobOptions = {
+		term = true,
+		on_exit = function(jobId, exitCode, event)
+			self:quit()
+		end
+	}
+
+	self.terminalBuf = vim.api.nvim_create_buf(false, true)
+	self:initWindow()
+	vim.api.nvim_set_current_win(self.terminalWin)
+
+	self.jobId = vim.fn.jobstart(shellCommand, jobOptions)
+end
+
+function Terminal:initWindow()
+	local width = math.floor(vim.o.columns * 0.8)
+	local height = math.floor(vim.o.lines * 0.8)
+	local row = math.floor((vim.o.lines - height) / 2)
+	local col = math.floor((vim.o.columns - width) / 2)
+
+	self.terminalWin = vim.api.nvim_open_win(self.terminalBuf, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		col = col,
+		row = row,
+		style = "minimal",
+		border = "rounded",
+	})
+end
+
+function Terminal:close()
+	vim.api.nvim_win_close(self.terminalWin, false)
+end
+
+function Terminal:quit()
+	self:close()
+	vim.api.nvim_buf_delete(self.terminalBuf, {})
+end
+
+function Terminal:open()
+	if not self.terminalBuf then
+		self:init()
+		return
+	end
+
+	if not vim.api.nvim_buf_is_valid(self.terminalBuf) then
+		self:init()
+	elseif vim.api.nvim_win_is_valid(self.terminalWin) then
+		vim.api.nvim_set_current_win(self.terminalWin)
+	else
+		self:initWindow()
+	end
+end
+
+function Terminal:toggle()
+	if vim.api.nvim_get_current_win() == self.terminalWin then
+		self:close()
+	else
+		self:open()
+	end
+end
+
+function Terminal:run(cmd)
+	self:open()
+
+	vim.schedule(function ()
+		vim.api.nvim_chan_send(self.jobId, cmd .. "\r")
+	end)
+
+	updateHistory(cmd)
+end
+
+---@type Terminal
+local terminal
+
 ---@param callback function<string>
 local function askCmd(callback)
 	local buf = vim.api.nvim_create_buf(false, true)
@@ -54,61 +156,34 @@ local function askCmd(callback)
 		border = "single",
 	})
 
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "" })
+	local augroup = "Runner: Input window " .. tostring(win)
+	vim.api.nvim_create_augroup(augroup, {})
+	vim.api.nvim_create_autocmd("WinClosed", {
+		group = augroup,
+		callback = function(args)
+			if args.buf == buf then
+				vim.api.nvim_buf_delete(buf, {})
+			end
+		end,
+	})
 
-	vim.keymap.set("n", "<CR>", function()
+	vim.cmd("startinsert")
+
+	local function confirm()
 		local cmd = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
 		vim.api.nvim_win_close(win, true)
 
 		callback(cmd)
-	end, { buffer = buf })
-end
+	end
 
----@param cmd string
-local function run(cmd)
-	local terminalBuffer = vim.api.nvim_create_buf(false, true)
-
-	local currentUi = vim.api.nvim_list_uis()[1]
-	local windowWidth = math.floor(currentUi.width * 0.8)
-	local windowHeight = math.floor(currentUi.height * 0.8)
-	local windowCol = math.floor((currentUi.width - windowWidth) / 2)
-	local windowRow = math.floor((currentUi.height - windowHeight) / 2)
-
-	local floatingWindow = vim.api.nvim_open_win(terminalBuffer, true, {
-		relative = "editor",
-		width = windowWidth,
-		height = windowHeight,
-		col = windowCol,
-		row = windowRow,
-		style = "minimal",
-		border = "rounded"
-	})
-
-	vim.api.nvim_set_current_win(floatingWindow)
-
-	local shellCommand = vim.o.shell
-
-	local jobOptions = {
-		term = true,
-		on_exit = function(jobId, exitCode, event)
-			vim.api.nvim_win_close(floatingWindow, false)
-			vim.api.nvim_buf_delete(terminalBuffer, {})
-		end
-	}
-
-	local jobId = vim.fn.jobstart(shellCommand, jobOptions)
-
-	vim.defer_fn(function()
-		vim.api.nvim_chan_send(jobId, cmd .. "\r")
-	end, 50)
-
-	vim.cmd("startinsert")
-	updateHistory(cmd)
-	vim.keymap.set('n', 'q', '<Cmd>close<CR>', { buffer = terminalBuffer, noremap = true, silent = true })
+	vim.keymap.set("n", "<CR>", confirm, { buffer = buf })
+	vim.keymap.set("i", "<CR>", confirm, { buffer = buf })
+	vim.keymap.set("i", "<C-s>", confirm, { buffer = buf })
+	vim.keymap.set('n', 'q', '<Cmd>close<CR>', { buffer = buf, noremap = true, silent = true })
 end
 
 function M.run()
-	askCmd(run)
+	askCmd(function (cmd) terminal:run(cmd) end)
 end
 
 function M.runLast()
@@ -116,14 +191,18 @@ function M.runLast()
 	local cmdInfo = data[getCwd()]
 
 	if (cmdInfo and cmdInfo.cmd) then
-		run(cmdInfo.cmd)
-		return
+		terminal:run(cmdInfo.cmd)
+	else
+		M.run()
 	end
+end
 
-	M.run()
+function M.toggle()
+	terminal:toggle()
 end
 
 function M.setup(opts)
+	terminal = Terminal:new()
 	if vim.fn.filereadable(historyPath) == 0 then
 		vim.fn.mkdir(vim.fn.fnamemodify(historyPath, ":h"), "p")
 
