@@ -209,7 +209,9 @@ local function askCmd(callback)
 	vim.keymap.set("n", "<CR>", confirm, { buffer = buf, desc = "Submit" })
 	vim.keymap.set("i", "<CR>", confirm, { buffer = buf, desc = "Submit" })
 	vim.keymap.set("i", "<C-s>", confirm, { buffer = buf, desc = "Submit" })
-	vim.keymap.set('n', 'q', '<Cmd>close<CR>', { buffer = buf, noremap = true, silent = true, desc = "Cancel" })
+	vim.keymap.set('n', 'q', function ()
+		vim.api.nvim_win_close(win, true)
+	end, { buffer = buf, noremap = true, silent = true, desc = "Cancel" })
 end
 
 function M.run()
