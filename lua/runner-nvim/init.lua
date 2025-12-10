@@ -4,15 +4,16 @@ local M = {}
 ---@field cmd string
 ---@field time integer
 
+---@type string
 local historyPath = vim.fn.stdpath("data") .. "/runner-nvim/history.json"
 
----@param data CmdInfo[]
+---@param data table<string, CmdInfo>
 local function saveHistory(data)
 	local jsonString = vim.json.encode(data)
 	vim.fn.writefile({ jsonString }, historyPath)
 end
 
----@return CmdInfo[]
+---@return table<string, CmdInfo>
 local function readHistory()
 	local jsonString = vim.fn.readfile(historyPath)
 
@@ -32,6 +33,31 @@ local function updateHistory(cmd)
 	local data = readHistory()
 
 	data[getCwd()] = { cmd = cmd, time = os.time() }
+
+	local maxEntries = 100
+	local count = 0
+
+	for _ in pairs(data) do
+		count = count + 1
+	end
+
+	if count > maxEntries then
+		local items = {}
+		for cwd, info in pairs(data) do
+			table.insert(items, { cwd = cwd, time = info.time })
+		end
+
+		table.sort(items, function(a, b)
+			return a.time < b.time
+		end)
+
+		local toRemove = count - maxEntries
+		for i = 1, toRemove do
+			local oldest = items[i]
+			data[oldest.cwd] = nil
+		end
+	end
+
 	saveHistory(data)
 end
 
@@ -42,6 +68,7 @@ end
 local Terminal = {}
 Terminal.__index = Terminal
 
+---@return Terminal
 function Terminal:new()
 	local data = {
 		terminalBuf = nil,
@@ -124,6 +151,7 @@ function Terminal:toggle()
 	end
 end
 
+---@param cmd string
 function Terminal:run(cmd)
 	self:open()
 
