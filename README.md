@@ -1,5 +1,7 @@
 # runner-nvim
 
+https://github.com/user-attachments/assets/6ec1077d-47d1-4e80-a042-081079d21642
+
 A simple and lightweight Neovim plugin to run commands in a floating terminal. It remembers the last command executed per project (current working directory), making it easy to repeat build or test commands.
 
 ## Features
