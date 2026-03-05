@@ -22,6 +22,8 @@ Install using your favorite package manager. Here is an example with [lazy.nvim]
     keys = {
         { "<leader>r", function () require("runner-nvim").runLast() end, desc = "Run last cmd" },
         { "<leader>o", function () require("runner-nvim").run() end, desc = "Run cmd" },
+        { "<leader>b", function () require("runner-nvim").runBuild() end, desc = "Run build cmd"},
+        { "<leader>B", function () require("runner-nvim").changeBuild() end, desc = "Change build cmd"},
         { "<leader>t", function () require("runner-nvim").toggle() end, desc = "Toggle terminal"},
     }
 }
@@ -31,5 +33,7 @@ Install using your favorite package manager. Here is an example with [lazy.nvim]
 
 - **Run Command**: Trigger the run command keybinding (e.g., `<leader>o`). A prompt will appear. Type your shell command (e.g., `npm test`, `cargo build`, `make`) and press Enter.
 - **Run Last Command**: Trigger the run last command keybinding (e.g., `<leader>r`). The plugin will execute the last command used in the current working directory. If no command is found, it will prompt you for one.
+- **Change Build Command**: Trigger the run command keybinding (e.g., `<leader>B`). A prompt will appear. Type your shell command (e.g., `npm test`, `cargo build`, `make`) and press Enter.
+- **Run Build Command**: Trigger the build command keybinding (e.g., `<leader>b`). The plugin will execute the build command for the current working directory. If no build command is found, it will prompt you for one.
 - **Toggle Terminal**: Use the toggle keybinding (e.g., `<leader>t`) to show or hide the terminal window.
 - **Close Terminal**: Press `q` in Normal mode inside the terminal window to close it.
