@@ -17,11 +17,8 @@ end
 ---@return table<string, CmdInfo>
 local function readHistory()
 	local jsonString = vim.fn.readfile(historyPath)
-	if(jsonString) then
-		return vim.json.decode(jsonString[1])
-	else
-		return {}
-	end
+
+	return vim.json.decode(jsonString[1])
 end
 
 ---@return string
