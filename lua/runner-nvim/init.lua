@@ -1,7 +1,8 @@
 local M = {}
 
 ---@class CmdInfo
----@field cmd string
+---@field lastcmd string?
+---@field build string?
 ---@field time integer
 
 ---@type string
@@ -28,11 +29,8 @@ local function getCwd()
 	return result
 end
 
----@param cmd string
-local function updateHistory(cmd)
-	local data = readHistory()
-
-	data[getCwd()] = { cmd = cmd, time = os.time() }
+---@param data table<string, CmdInfo>
+local function removeExtraEntries(data)
 
 	local maxEntries = 100
 	local count = 0
@@ -48,7 +46,7 @@ local function updateHistory(cmd)
 		end
 
 		table.sort(items, function(a, b)
-			return a.time < b.time
+			return a.recent.time < b.recent.time
 		end)
 
 		local toRemove = count - maxEntries
@@ -59,6 +57,24 @@ local function updateHistory(cmd)
 	end
 
 	saveHistory(data)
+end
+
+---@param cmd string
+local function updateHistory(cmd)
+	local data = readHistory()
+	
+
+	data[getCwd()] = { lastcmd = cmd, build = (data[getCwd()]~=nil and data[getCwd()].build) or nil, time = os.time()}
+
+	removeExtraEntries(data)
+end
+---@param cmd string
+local function updateBuild(cmd)
+	local data = readHistory()
+
+	data[getCwd()] = { lastcmd=(data[getCwd()] and data[getCwd()].lastcmd) or nil, build=cmd, time = os.time()}
+
+	removeExtraEntries(data)
 end
 
 ---@class Terminal
@@ -169,6 +185,16 @@ function Terminal:run(cmd)
 
 	updateHistory(cmd)
 end
+---@param cmd string
+function Terminal:build(cmd)
+	self:open()
+
+	vim.schedule(function ()
+		vim.api.nvim_chan_send(self.jobId, cmd .. "\r")
+	end)
+
+	updateBuild(cmd)
+end
 
 ---@type Terminal
 local terminal
@@ -217,15 +243,28 @@ end
 function M.run()
 	askCmd(function (cmd) terminal:run(cmd) end)
 end
+function M.changeBuild()
+	askCmd(function (cmd) terminal:build(cmd) end)
+end
 
 function M.runLast()
 	local data = readHistory()
 	local cmdInfo = data[getCwd()]
 
-	if (cmdInfo and cmdInfo.cmd) then
-		terminal:run(cmdInfo.cmd)
+	if (cmdInfo and cmdInfo.lastcmd) then
+		terminal:run(cmdInfo.lastcmd)
 	else
 		M.run()
+	end
+end
+function M.runBuild()
+	local data = readHistory()
+	local cmdInfo = data[getCwd()]
+
+	if (cmdInfo and cmdInfo.build) then
+		terminal:run(cmdInfo.build)
+	else
+		M.changeBuild()
 	end
 end
 
