@@ -218,6 +218,10 @@ function M.run()
 	askCmd(function (cmd) terminal:run(cmd) end)
 end
 
+function M.run_cmd(cmd)
+	terminal:run(cmd)
+end
+
 function M.runLast()
 	local data = readHistory()
 	local cmdInfo = data[getCwd()]

@@ -23,13 +23,15 @@ Install using your favorite package manager. Here is an example with [lazy.nvim]
         { "<leader>r", function () require("runner-nvim").runLast() end, desc = "Run last cmd" },
         { "<leader>o", function () require("runner-nvim").run() end, desc = "Run cmd" },
         { "<leader>t", function () require("runner-nvim").toggle() end, desc = "Toggle terminal"},
+        { "<leader>l", function () require("runner-nvim").run_cmd("ls") end, desc = "Run ls" },
     }
 }
 ```
 
 ## Usage
 
-- **Run Command**: Trigger the run command keybinding (e.g., `<leader>o`). A prompt will appear. Type your shell command (e.g., `npm test`, `cargo build`, `make`) and press Enter.
+- **Prompt and run Command**: Trigger the run command keybinding (e.g., `<leader>o`). A prompt will appear. Type your shell command (e.g., `npm test`, `cargo build`, `make`) and press Enter.
+- **Run Command**: Trigger the run_cmd keybinding (e.g., `<leader>l`). run_cmd accepts a string argument which is the command to run. For example, you can set up a keybinding to run `ls` or any other frequently used command.
 - **Run Last Command**: Trigger the run last command keybinding (e.g., `<leader>r`). The plugin will execute the last command used in the current working directory. If no command is found, it will prompt you for one.
 - **Toggle Terminal**: Use the toggle keybinding (e.g., `<leader>t`) to show or hide the terminal window.
 - **Close Terminal**: Press `q` in Normal mode inside the terminal window to close it.
